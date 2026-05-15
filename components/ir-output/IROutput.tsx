@@ -14,6 +14,8 @@ type IROutputProps = {
   compileState: CompileState;
 };
 
+const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
+
 export function IROutput({ ir, model, compileState }: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
@@ -21,7 +23,7 @@ export function IROutput({ ir, model, compileState }: IROutputProps) {
 
   return (
     <motion.section
-      className="flex flex-col"
+      className="relative flex flex-col"
       animate={{
         boxShadow: isCompiling
           ? "inset 0 0 120px -30px rgba(150, 200, 255, 0.18)"
@@ -33,17 +35,55 @@ export function IROutput({ ir, model, compileState }: IROutputProps) {
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           ir
         </span>
-        <TokenMeter tokens={tokens} model={model} />
+        {isEmpty ? (
+          <span className="font-mono text-[11px] text-muted-foreground/60">awaiting compile</span>
+        ) : (
+          <TokenMeter tokens={tokens} model={model} />
+        )}
       </div>
       <div className="flex-1 overflow-auto px-6 py-5 font-mono text-sm leading-relaxed">
         {isCompiling ? (
-          <span className="animate-pulse text-muted-foreground/60">Compiling…</span>
+          <CompilingState />
         ) : isEmpty ? (
-          <span className="text-muted-foreground/50">Compile to see the IR.</span>
+          <EmptyState />
         ) : (
           <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
         )}
       </div>
     </motion.section>
+  );
+}
+
+function CompilingState() {
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground">
+      <span
+        aria-hidden
+        className="inline-block size-1.5 animate-pulse rounded-full bg-foreground/70"
+      />
+      <span>compiling…</span>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1 text-muted-foreground/30 select-none">
+        {EMPTY_PREVIEW_TAGS.map((tag) => (
+          <div key={tag}>
+            <span>&lt;{tag}&gt;</span>
+            <span className="ml-2 text-muted-foreground/20">…</span>
+            <div>&lt;/{tag}&gt;</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground/60">
+        <span>compile to populate</span>
+        <kbd className="rounded border border-border bg-card/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          ⌘↵
+        </kbd>
+      </div>
+    </div>
   );
 }
