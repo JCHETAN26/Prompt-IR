@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import type { CompileError, CompileRequest, CompileResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -67,6 +68,7 @@ function buildStub({ source }: CompileRequest): CompileResponse {
       rules: "stub: rationale arrives in Task 2.3",
       task: "stub: rationale arrives in Task 2.3",
     },
+    meta_prompt_version: META_PROMPT_VERSION,
   };
 }
 

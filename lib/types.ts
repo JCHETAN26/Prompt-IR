@@ -42,6 +42,8 @@ export type CompileResponse = {
     rules: string;
     task: string;
   };
+  /** Version of the Meta-Prompt that produced this response. Surfaced for debuggability. */
+  meta_prompt_version: string;
 };
 
 export type CompileError = {

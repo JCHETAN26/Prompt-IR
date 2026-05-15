@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import type { CompileResponse } from "@/lib/types";
 
 import { POST } from "../route";
@@ -37,6 +38,7 @@ describe("POST /api/compile", () => {
       rules: expect.any(String),
       task: expect.any(String),
     });
+    expect(body.meta_prompt_version).toBe(META_PROMPT_VERSION);
   });
 
   it("trims surrounding whitespace from source before placing it in context", async () => {
