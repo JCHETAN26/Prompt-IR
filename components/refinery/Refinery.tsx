@@ -21,6 +21,7 @@ type RefineryProps = {
 export function Refinery({ value, onChange, model, compileState, onCompile }: RefineryProps) {
   const tokens = useMemo(() => countTokens(value, model), [value, model]);
   const density = useMemo(() => densityScore(value), [value]);
+  const hasContent = value.trim().length > 0;
 
   return (
     <section className="flex flex-col">
@@ -29,7 +30,7 @@ export function Refinery({ value, onChange, model, compileState, onCompile }: Re
           source
         </span>
         <div className="flex items-center gap-3">
-          <DensityBadge score={density.score} />
+          <DensityBadge score={density.score} hasContent={hasContent} />
           <span className="text-muted-foreground/40">·</span>
           <TokenMeter tokens={tokens} model={model} />
         </div>
@@ -43,11 +44,12 @@ export function Refinery({ value, onChange, model, compileState, onCompile }: Re
           autoComplete="off"
           autoCorrect="off"
           placeholder="Drop your messy logic, context, and requirements here..."
-          className="flex-1 resize-none bg-transparent px-6 pb-16 pt-5 font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="flex-1 resize-none bg-transparent px-6 pb-20 pt-5 font-mono text-sm leading-relaxed text-foreground caret-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background via-background/85 to-transparent" />
         <div className="pointer-events-none absolute bottom-4 right-4">
           <div className="pointer-events-auto">
-            <CompileButton state={compileState} onCompile={onCompile} disabled={!value.trim()} />
+            <CompileButton state={compileState} onCompile={onCompile} disabled={!hasContent} />
           </div>
         </div>
       </div>
