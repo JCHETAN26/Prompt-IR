@@ -35,6 +35,7 @@ const FILLER_PHRASES = [
   "sorry",
   "hey",
   "hi",
+  "hello",
   "just",
   "maybe",
   "kind of",

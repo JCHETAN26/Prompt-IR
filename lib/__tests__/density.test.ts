@@ -39,4 +39,10 @@ describe("densityScore", () => {
     const result = densityScore(text);
     expect(result.filler).toBeGreaterThanOrEqual(3);
   });
+
+  it("treats 'hello' as filler alongside 'hi' and 'hey'", () => {
+    expect(densityScore("Hello there.").filler).toBeGreaterThanOrEqual(1);
+    expect(densityScore("Hi there.").filler).toBeGreaterThanOrEqual(1);
+    expect(densityScore("Hey there.").filler).toBeGreaterThanOrEqual(1);
+  });
 });
