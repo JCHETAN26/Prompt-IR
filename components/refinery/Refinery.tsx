@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 
+import { DensityBadge } from "@/components/meters/DensityBadge";
 import { TokenMeter } from "@/components/meters/TokenMeter";
+import { densityScore } from "@/lib/density";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
 
@@ -14,14 +16,19 @@ type RefineryProps = {
 
 export function Refinery({ value, onChange, model }: RefineryProps) {
   const tokens = useMemo(() => countTokens(value, model), [value, model]);
+  const density = useMemo(() => densityScore(value), [value]);
 
   return (
     <section className="flex flex-col">
-      <div className="flex h-10 items-center justify-between border-b border-border px-6">
+      <div className="flex h-10 items-center justify-between gap-4 border-b border-border px-6">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           source
         </span>
-        <TokenMeter tokens={tokens} model={model} />
+        <div className="flex items-center gap-3">
+          <DensityBadge score={density.score} />
+          <span className="text-muted-foreground/40">·</span>
+          <TokenMeter tokens={tokens} model={model} />
+        </div>
       </div>
       <textarea
         value={value}
