@@ -1,15 +1,27 @@
 "use client";
 
+import { useMemo } from "react";
+
+import { TokenMeter } from "@/components/meters/TokenMeter";
+import { countTokens } from "@/lib/tokens";
+import type { ModelKey } from "@/lib/pricing";
+
 type RefineryProps = {
   value: string;
   onChange: (next: string) => void;
+  model: ModelKey;
 };
 
-export function Refinery({ value, onChange }: RefineryProps) {
+export function Refinery({ value, onChange, model }: RefineryProps) {
+  const tokens = useMemo(() => countTokens(value, model), [value, model]);
+
   return (
     <section className="flex flex-col">
-      <div className="flex h-10 items-center border-b border-border px-6 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        source
+      <div className="flex h-10 items-center justify-between border-b border-border px-6">
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          source
+        </span>
+        <TokenMeter tokens={tokens} model={model} />
       </div>
       <textarea
         value={value}
