@@ -137,7 +137,7 @@ Opt-in feature that sends both source and IR to a judge LLM, asks it to summariz
 
 | Layer | Technology | Reason |
 | --- | --- | --- |
-| Framework | Next.js 15 (App Router) | Fast, SEO-friendly, industry-standard |
+| Framework | Next.js 16 (App Router, Turbopack) | Fast, SEO-friendly, industry-standard |
 | Styling | Tailwind CSS + shadcn/ui | Vercel/Linear-grade aesthetic with low overhead |
 | Animations | Framer Motion | Smooth compile transitions, glowing states |
 | API Layer | Next.js API Routes | Co-located backend, no extra service |

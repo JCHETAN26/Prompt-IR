@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial repository scaffolding: `README.md`, `build-plan.md`, `system-prompt.md`.
 - Engineering foundation: PR template, Dependabot config, CHANGELOG.
+- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript 5.9 + Tailwind CSS 4 + ESLint 9 scaffold via `create-next-app`.
+- shadcn/ui initialized with default config; `components/ui/button.tsx` and `lib/utils.ts` generated.
+- Runtime deps for the Compiler Shell: `framer-motion`, `js-tiktoken`, `compromise`, `lucide-react`.
+- `AGENTS.md` + `CLAUDE.md` (Vercel agent-rules convention) included in repo to flag Next.js version drift to AI tooling.
+
+### Changed
+
+- Local directory renamed `Prompt-IR` → `prompt-ir` to satisfy npm package-name rules (lowercase only). GitHub remote URL is case-insensitive; no remote change required.
 
 ## [0.0.0] - 2026-05-15
 
