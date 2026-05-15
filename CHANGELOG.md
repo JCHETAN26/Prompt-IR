@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AGENTS.md` + `CLAUDE.md` (Vercel agent-rules convention) included in repo to flag Next.js version drift to AI tooling.
 - IR panel empty state now previews the `<context>`, `<constraints>`, `<rules>`, `<task>` block scaffold with a `⌘↵` hint.
 - Compiling state shows a pulsing status dot alongside the "compiling…" label.
+- `POST /api/compile` route returning a deterministic `CompileResponse`-shaped stub (real Anthropic call lands in Task 2.3). Validates body shape, mode, and source size; rejects malformed/oversized input with useful 4xx errors.
+- `lib/format-ir.ts` renders `CompileResponse.ir` to XML for Claude mode or Markdown sections for OpenAI mode in canonical tag order.
+- `lib/compile-client.ts` typed wrapper around `fetch('/api/compile')` for the page to call.
+- IR panel now renders a structured diff preview below the formatted IR and surfaces validation/network errors in a dedicated error state.
 
 ### Changed
 
@@ -25,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Density badge reads `—` instead of `0%` when the source is empty, so the meter stays honest about "no signal yet" vs. an actual zero score.
 - Refinery textarea gains an explicit caret color and a soft fade behind the floating Compile button so long source text doesn't visually collide with the action.
 - Footer ledger label tightened and presented as a single tabular row in 11px mono.
+- `CompileState` gains an `"error"` variant. The page now drives compile via the API stub instead of a fake 800ms timer; the IR panel renders a dedicated error state on failure.
 
 ## [0.0.0] - 2026-05-15
 

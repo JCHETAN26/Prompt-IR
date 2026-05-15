@@ -6,20 +6,23 @@ import { useMemo } from "react";
 import { TokenMeter } from "@/components/meters/TokenMeter";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
-import type { CompileState } from "@/lib/types";
+import type { CompileState, DiffEntry } from "@/lib/types";
 
 type IROutputProps = {
   ir: string | null;
+  diff: DiffEntry[] | null;
+  errorMessage: string | null;
   model: ModelKey;
   compileState: CompileState;
 };
 
 const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
 
-export function IROutput({ ir, model, compileState }: IROutputProps) {
+export function IROutput({ ir, diff, errorMessage, model, compileState }: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
   const isCompiling = compileState === "compiling";
+  const isError = compileState === "error";
 
   return (
     <motion.section
@@ -35,19 +38,23 @@ export function IROutput({ ir, model, compileState }: IROutputProps) {
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           ir
         </span>
-        {isEmpty ? (
+        {isError ? (
+          <span className="font-mono text-[11px] text-destructive">compile failed</span>
+        ) : isEmpty ? (
           <span className="font-mono text-[11px] text-muted-foreground/60">awaiting compile</span>
         ) : (
           <TokenMeter tokens={tokens} model={model} />
         )}
       </div>
       <div className="flex-1 overflow-auto px-6 py-5 font-mono text-sm leading-relaxed">
-        {isCompiling ? (
+        {isError ? (
+          <ErrorState message={errorMessage} />
+        ) : isCompiling ? (
           <CompilingState />
         ) : isEmpty ? (
           <EmptyState />
         ) : (
-          <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
+          <FilledState ir={ir!} diff={diff} />
         )}
       </div>
     </motion.section>
@@ -84,6 +91,63 @@ function EmptyState() {
           ⌘↵
         </kbd>
       </div>
+    </div>
+  );
+}
+
+function ErrorState({ message }: { message: string | null }) {
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-destructive">
+        error
+      </span>
+      <span className="text-muted-foreground">{message ?? "Unknown error."}</span>
+      <span className="text-[11px] text-muted-foreground/60">
+        Press ⌘↵ to retry, or adjust the source and recompile.
+      </span>
+    </div>
+  );
+}
+
+function FilledState({ ir, diff }: { ir: string; diff: DiffEntry[] | null }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
+      {diff && diff.length > 0 && <DiffPreview diff={diff} />}
+    </div>
+  );
+}
+
+function DiffPreview({ diff }: { diff: DiffEntry[] }) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-4">
+      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        diff (preview)
+      </span>
+      <ul className="flex flex-col gap-2 text-[12px]">
+        {diff.map((entry, i) => (
+          <li key={i} className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground/80">
+              <span className="text-muted-foreground/60">[{entry.category}]</span>{" "}
+              <span className="line-through decoration-destructive/60">{entry.original}</span>
+              {entry.replacement && (
+                <>
+                  <span className="px-1.5 text-muted-foreground/40">→</span>
+                  <span className="text-success">{entry.replacement}</span>
+                </>
+              )}
+            </span>
+            <span className="text-[11px] text-muted-foreground/60">
+              {entry.reason}
+              {entry.tokens_saved > 0 && (
+                <span className="ml-2 tabular-nums text-foreground/70">
+                  −{entry.tokens_saved} tok
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
