@@ -6,26 +6,39 @@ import { IROutput } from "@/components/ir-output/IROutput";
 import { CommandPalette, type PaletteCommand } from "@/components/palette/CommandPalette";
 import { Refinery } from "@/components/refinery/Refinery";
 import { AppShell } from "@/components/shell/AppShell";
+import { compileSource, modeForModel } from "@/lib/compile-client";
+import { formatIR } from "@/lib/format-ir";
 import { useHotkey } from "@/lib/hotkeys";
 import type { ModelKey } from "@/lib/pricing";
-import type { CompileState } from "@/lib/types";
-
-const COMPILE_DELAY_MS = 800;
+import type { CompileResponse, CompileState } from "@/lib/types";
 
 export default function Home() {
   const [source, setSource] = useState("");
-  const [ir, setIR] = useState<string | null>(null);
+  const [response, setResponse] = useState<CompileResponse | null>(null);
   const [model, setModel] = useState<ModelKey>("claude-sonnet");
   const [compileState, setCompileState] = useState<CompileState>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const mode = modeForModel(model);
+  const ir = response ? formatIR(response.ir, mode) : null;
 
   const handleCompile = useCallback(async () => {
     if (!source.trim() || compileState === "compiling") return;
     setCompileState("compiling");
-    await new Promise((resolve) => setTimeout(resolve, COMPILE_DELAY_MS));
-    setIR(`<context>\n${source.trim()}\n</context>`);
+    setErrorMessage(null);
+
+    const result = await compileSource(source, modeForModel(model));
+
+    if (!result.ok) {
+      setErrorMessage(result.error);
+      setCompileState("error");
+      return;
+    }
+
+    setResponse(result.data);
     setCompileState("done");
-  }, [source, compileState]);
+  }, [source, model, compileState]);
 
   const handleCopyIR = useCallback(async () => {
     if (!ir) return;
@@ -64,7 +77,13 @@ export default function Home() {
             compileState={compileState}
             onCompile={handleCompile}
           />
-          <IROutput ir={ir} model={model} compileState={compileState} />
+          <IROutput
+            ir={ir}
+            diff={response?.diff ?? null}
+            errorMessage={errorMessage}
+            model={model}
+            compileState={compileState}
+          />
         </div>
       </AppShell>
       <CommandPalette open={paletteOpen} onClose={closePalette} commands={commands} />

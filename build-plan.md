@@ -1,6 +1,6 @@
 # Prompt-IR — Build Plan
 
-A concrete, sequenced plan for the builder LLM. Read alongside `README.md` (product spec) and `system-prompt.md` (operating principles). The README is the *what*; this is the *how*; the system prompt is the *how to think*.
+A concrete, sequenced plan for the builder LLM. Read alongside `README.md` (product spec) and `system-prompt.md` (operating principles). The README is the _what_; this is the _how_; the system prompt is the _how to think_.
 
 ---
 
@@ -16,11 +16,11 @@ A concrete, sequenced plan for the builder LLM. Read alongside `README.md` (prod
 
 ## Source of Truth
 
-| File | Role |
-| --- | --- |
-| `README.md` | Product spec, positioning, non-negotiables, Honest Caveats |
-| `system-prompt.md` | Builder LLM operating principles |
-| `build-plan.md` | This file — sequenced tasks and acceptance criteria |
+| File                 | Role                                                         |
+| -------------------- | ------------------------------------------------------------ |
+| `README.md`          | Product spec, positioning, non-negotiables, Honest Caveats   |
+| `system-prompt.md`   | Builder LLM operating principles                             |
+| `build-plan.md`      | This file — sequenced tasks and acceptance criteria          |
 | `lib/meta-prompt.ts` | The compiler's internal instruction set (written in Phase 2) |
 
 If these conflict, the README wins.
@@ -49,12 +49,14 @@ Goal: a credible engineering foundation before any product code. Branch protecti
 Deliverable: a remote repo with the seed documents committed to `main`.
 
 Steps:
+
 - Create the repo: `gh repo create prompt-ir --private --source=. --remote=origin`
 - Stage the seed files: `README.md`, `build-plan.md`, `system-prompt.md`, `CHANGELOG.md`, `.github/pull_request_template.md`, `.github/dependabot.yml`
 - Add a `.gitignore` covering `node_modules/`, `.next/`, `.env*` (except `.env.example`), `.vercel/`, `*.log`, `.DS_Store`
 - First commit: `chore: project foundation` and push to `main`
 
 Acceptance:
+
 - The remote `main` branch shows all seed files
 - `git status` is clean
 - `.env*` files are gitignored
@@ -64,6 +66,7 @@ Acceptance:
 Deliverable: `main` is protected. No direct pushes. CI must pass before merge.
 
 Steps (Settings → Branches → Add rule for `main`):
+
 - Require a pull request before merging (1 approval; for solo work, enable "Allow specified actors to bypass" only for yourself if needed — but prefer the discipline of approving your own PR)
 - Require status checks to pass: `ci / lint`, `ci / typecheck`, `ci / test`, `ci / build`
 - Require branches to be up to date before merging
@@ -72,6 +75,7 @@ Steps (Settings → Branches → Add rule for `main`):
 - Block deletions
 
 Acceptance:
+
 - `git push origin main` from a non-PR branch is rejected
 - An open PR with red CI cannot be merged through the UI
 
@@ -80,12 +84,14 @@ Acceptance:
 Deliverable: the seed `.github/` files actually do what they're meant to.
 
 Steps:
+
 - Open a throwaway PR (`docs/test-template` branch, add a single character to CHANGELOG)
 - Confirm the PR description auto-fills from `pull_request_template.md`
 - Confirm Dependabot appears under Insights → Dependency graph → Dependabot
 - Close the throwaway PR without merging
 
 Acceptance:
+
 - Template auto-fills on PR creation
 - Dependabot is enabled and scheduled weekly
 
@@ -105,12 +111,14 @@ Goal: a beautiful, working UI that already feels like a compiler. All client-sid
 Deliverable: a Next.js 15 App Router project with Tailwind, shadcn/ui, and TypeScript strict mode.
 
 Commands:
+
 - `pnpm create next-app@latest prompt-ir --typescript --tailwind --app --src-dir=false --import-alias="@/*"`
 - `pnpm dlx shadcn@latest init` — pick default style, Inter font, JetBrains Mono for code blocks
 - Install: `pnpm add framer-motion js-tiktoken compromise lucide-react`
 - Install dev: `pnpm add -D @types/node`
 
 Acceptance:
+
 - `pnpm dev` boots without warnings
 - `tsc --noEmit` passes
 - `app/page.tsx` exists and renders a placeholder
@@ -238,6 +246,7 @@ Create `.prettierrc.json`:
 ```
 
 Vercel link (request approval before running these):
+
 - Install the Vercel GitHub App on the `prompt-ir` repo
 - Set production branch = `main`
 - Add env vars in Vercel: `ANTHROPIC_API_KEY` (placeholder for now, real key at Phase 2), `OPENAI_API_KEY` (optional)
@@ -246,6 +255,7 @@ Vercel link (request approval before running these):
 Open one PR (`chore/ci-wiring`) that introduces all of the above. Use the workflow described in `system-prompt.md`.
 
 Acceptance:
+
 - All four CI jobs (`lint`, `typecheck`, `test`, `build`) run on every PR
 - A commit with a non-conventional message is rejected locally by commitlint
 - A staged `.tsx` file is auto-formatted on commit
@@ -257,11 +267,13 @@ Acceptance:
 Deliverable: dark-mode-first global layout. Inter for UI, JetBrains Mono for prompt text. Three-panel grid scaffold.
 
 Files:
+
 - `app/layout.tsx` — fonts, dark theme by default, `html lang="en" class="dark"`
 - `app/globals.css` — Tailwind base, CSS vars for `--background`, `--foreground`, `--accent`, `--border`, `--success`, `--danger`
 - `components/shell/AppShell.tsx` — header (logo, model toggle placeholder, settings), main split area, footer (savings ledger placeholder)
 
 Acceptance:
+
 - Dark mode is the default and only mode for v1
 - Inter and JetBrains Mono load and apply to the correct surfaces
 - Header, main, footer are visible with placeholder content
@@ -271,11 +283,13 @@ Acceptance:
 Deliverable: Source panel (left, ~50%) and IR panel (right, ~50%) with a draggable divider OR fixed 50/50 split for v1 (fixed is fine — pick one and commit).
 
 Files:
+
 - `app/page.tsx` — composes `Refinery` and `IROutput`
 - `components/refinery/Refinery.tsx` — `<textarea>` with monospace, autosize, placeholder copy
 - `components/ir-output/IROutput.tsx` — read-only display, monospace, empty state ("Compile to see the IR")
 
 Acceptance:
+
 - Typing in Source does not affect IR
 - Both panels scroll independently
 - Empty Source shows a hint; empty IR shows the empty state
@@ -285,12 +299,14 @@ Acceptance:
 Deliverable: live token counter and dollar meter, both panels, both models (GPT-4o + Claude 3.5 Sonnet).
 
 Files:
+
 - `lib/tokens.ts` — wraps `js-tiktoken` with a memoized `countTokens(text, model)` function
 - `lib/pricing.ts` — per-1M-token rates as a plain object (input + output, cached vs uncached)
 - `components/meters/TokenMeter.tsx` — token count + dollar cost for one panel, one model
 - Wired into `Refinery` and `IROutput`
 
 Acceptance:
+
 - Typing in Source updates the count within one frame (no debounce visible to the human eye)
 - Costs round to four decimals
 - Switching the model toggle (placeholder for now) changes the displayed price
@@ -300,11 +316,13 @@ Acceptance:
 Deliverable: client-side instruction-density metric using `compromise`. Shown as a small badge on the Source panel.
 
 Files:
+
 - `lib/density.ts` — exposes `densityScore(text)` returning `{ verbs: number, constraints: number, filler: number, score: 0..1 }`
 - Define "filler" as: politeness markers, hedges ("just", "kind of", "I was wondering"), and meta-phrases ("please could you"). Maintain the list in `lib/density.ts`.
 - `components/meters/DensityBadge.tsx`
 
 Acceptance:
+
 - A prompt full of filler returns a low score (<0.4)
 - A prompt with many imperatives and constraints returns a high score (>0.7)
 - Unit-test the boundaries in `lib/__tests__/density.test.ts` (vitest is wired in Task 1.2)
@@ -314,10 +332,12 @@ Acceptance:
 Deliverable: pressing `⌘+Enter` or clicking the Compile button triggers a fake 800ms transition with a glow state on the IR panel, then renders a stub IR (just the source wrapped in `<context>` tags).
 
 Files:
+
 - `components/compile/CompileButton.tsx`
 - `components/ir-output/IROutput.tsx` — accepts a `compileState: "idle" | "compiling" | "done"` prop, uses Framer Motion for the transition
 
 Acceptance:
+
 - Button visibly responds to the keystroke
 - Glow state animates in and out
 - Stub IR appears in the IR panel
@@ -327,10 +347,12 @@ Acceptance:
 Deliverable: `⌘+Enter` compile, `⌘+C` copy IR (when IR exists), `⌘+K` opens a placeholder command palette.
 
 Files:
+
 - `lib/hotkeys.ts` — simple `useHotkeys` hook
 - `components/palette/CommandPalette.tsx` — modal with one entry ("Compile") for now
 
 Acceptance:
+
 - Shortcuts work without focus stealing from the textarea
 - Palette opens and closes with `⌘+K` and `Esc`
 
@@ -339,6 +361,7 @@ Acceptance:
 Deliverable: Vercel/Linear-grade visual quality. Compare against the actual Linear and Vercel dashboards before signing off.
 
 Checklist:
+
 - Borders and dividers at 1px with low-contrast color
 - Hover states on every interactive element
 - Focus rings present but not gaudy
@@ -346,6 +369,7 @@ Checklist:
 - No layout shift on resize
 
 Acceptance:
+
 - Take a screenshot. If it would look out of place next to a Linear screenshot, redo it.
 
 ### Phase 1 Definition of Done
@@ -367,10 +391,12 @@ Goal: a real `/api/compile` route returning the structured JSON contract from th
 Deliverable: `app/api/compile/route.ts` accepting `{ source: string, mode: "claude" | "openai" }` and returning a stub matching the `CompileResponse` type from the README.
 
 Files:
+
 - `app/api/compile/route.ts`
 - `lib/types.ts` — `CompileResponse`, exported, single source of truth
 
 Acceptance:
+
 - POST returns the stub within 50ms
 - Invalid body returns 400 with a useful error
 - Frontend calls the route on `⌘+Enter` and renders the stub diff
@@ -380,6 +406,7 @@ Acceptance:
 Deliverable: `lib/meta-prompt.ts` exporting `buildMetaPrompt({ mode })` that returns the full instruction string for Claude.
 
 Requirements:
+
 - Must instruct Claude to emit ONLY valid JSON matching `CompileResponse`
 - Must enforce tag order: `<context>` → `<constraints>` → `<rules>` → `<task>`
 - Must populate every `diff[]` entry with `category` and `reason`
@@ -388,6 +415,7 @@ Requirements:
 - For `mode: "openai"`, swap XML scaffolding for Markdown sections but keep the JSON shape identical
 
 Acceptance:
+
 - The Meta-Prompt is its own file; no inlined string in the route handler
 - Versioned (`META_PROMPT_VERSION = "1.0.0"`) and the version is returned in the response for debuggability
 
@@ -396,10 +424,12 @@ Acceptance:
 Deliverable: route calls Claude 3.5 Sonnet, with the Meta-Prompt marked `cache_control: { type: "ephemeral" }`.
 
 Files:
+
 - `lib/anthropic.ts` — wraps the SDK, single `compile(source, mode)` export
 - `app/api/compile/route.ts` — wires it in, parses Claude's JSON response, validates against the type, returns
 
 Acceptance:
+
 - First call writes the cache, subsequent calls within 5 minutes show `cache_read_input_tokens > 0` in the response usage block
 - Log cache hits to the server console
 - Per-compile cost (input+output) printed in dev for sanity-checking
@@ -409,10 +439,12 @@ Acceptance:
 Deliverable: when Claude returns malformed JSON, the route retries once with a stricter instruction, then surfaces a clean error to the UI.
 
 Files:
+
 - `lib/parse-ir.ts` — Zod schema matching `CompileResponse`, returns `{ ok: true, data } | { ok: false, error }`
 - Wire into the route
 
 Acceptance:
+
 - Unit tests cover: valid response, missing field, wrong type, extra field
 - UI shows a non-alarming error state when parse fails
 
@@ -421,10 +453,12 @@ Acceptance:
 Deliverable: after the main compile, call Claude Haiku to score `{ specificity, constraint_clarity, formatting }` for source vs IR. Populate `metrics.confidence_score`.
 
 Files:
+
 - `lib/judge.ts`
 - `app/api/compile/route.ts` — runs Haiku in parallel with the main compile to avoid sequential latency
 
 Acceptance:
+
 - Total round-trip stays under 6 seconds on a 1000-token source
 - Scores are integers 0–10
 - If Haiku fails, the response still returns with `confidence_score: null` and the UI degrades gracefully
@@ -434,10 +468,12 @@ Acceptance:
 Deliverable: hovering over a removed segment in the diff shows the `reason` and `tokens_saved` from `diff[].reason`.
 
 Files:
+
 - `components/diff/DiffView.tsx`
 - `components/diff/WhyTooltip.tsx`
 
 Acceptance:
+
 - Tooltip appears within 200ms of hover
 - Long reasons wrap cleanly
 - Keyboard-focusable for accessibility
@@ -447,6 +483,7 @@ Acceptance:
 Deliverable: working Claude/OpenAI toggle that changes the Meta-Prompt mode and switches pricing.
 
 Acceptance:
+
 - Toggle persists in localStorage
 - Switching mode after a compile does not silently mutate the displayed IR — it shows a "Recompile to apply" hint
 
@@ -468,10 +505,12 @@ Goal: the polish that makes developers trust the tool and share it.
 Deliverable: a "Dry Run" button that sends source and IR to a judge LLM, asks for a one-sentence summary of each, and shows them side-by-side.
 
 Files:
+
 - `app/api/dry-run/route.ts`
 - `components/dry-run/DryRunPanel.tsx`
 
 Acceptance:
+
 - Opt-in only (button click, never automatic)
 - Clear cost disclosure before the call ("≈ $0.002")
 - If the two summaries diverge, highlight the difference
@@ -481,10 +520,12 @@ Acceptance:
 Deliverable: the badge described in `README.md` → Trust Stack. Deterministic check on the IR.
 
 Files:
+
 - `lib/cache-check.ts` — `isCacheReady(ir: string, model): { ready: boolean, reason: string }`
 - `components/meters/CacheReadyBadge.tsx`
 
 Acceptance:
+
 - Returns `ready: true` only when token count ≥1024 AND all four tags are present in order
 - Below threshold, badge reads `Below cache threshold` — no fake percentages
 - Badge updates live as IR changes (e.g., model toggle changes the threshold)
@@ -494,6 +535,7 @@ Acceptance:
 Deliverable: the full red/green diff view referenced in the README. Filler highlighted in red, structural anchors in green.
 
 Acceptance:
+
 - Diff is readable on a 13" screen without horizontal scroll
 - Toggle to switch between "unified" and "split" views
 
@@ -502,10 +544,12 @@ Acceptance:
 Deliverable: download `.md`, download `.txt`, "Copy for Cursor" button.
 
 Files:
+
 - `lib/export.ts`
 - `components/export/ExportMenu.tsx`
 
 Acceptance:
+
 - `.md` output preserves XML tags inside code fences
 - "Copy for Cursor" wraps the IR in a Cursor-friendly framing comment
 
@@ -514,10 +558,12 @@ Acceptance:
 Deliverable: cumulative tokens and dollars saved across sessions. Lives in the footer.
 
 Files:
+
 - `lib/ledger.ts` — `recordCompile({ saved_tokens, saved_dollars })`, `getLedger()`
 - `components/ledger/LedgerFooter.tsx`
 
 Acceptance:
+
 - Survives page reload
 - Clear button with confirmation
 - Honest framing: shows raw numbers, no rounding-up
@@ -527,12 +573,14 @@ Acceptance:
 Deliverable: long-form landing-page sections targeting the SEO queries from the README. Below the fold of the compiler.
 
 Sections:
+
 - "How to reduce Claude 3.5 Sonnet token costs"
 - "XML tagging template for LLM prompts"
 - "Cursor IDE prompt optimization"
 - "Best PromptPerfect alternative 2026"
 
 Acceptance:
+
 - Each section is 300+ words of genuinely useful content, not keyword stuffing
 - Internal links to relevant features in the compiler
 
@@ -571,6 +619,8 @@ Listed so the builder LLM doesn't drift into them.
 
 Track every non-obvious choice here as you build. Future you and future readers will thank you.
 
-| Date | Decision | Reason |
-| --- | --- | --- |
-| TBD | (first entry) | |
+| Date       | Decision                                                                                       | Reason                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-15 | Task 2.1 stub returns `metrics.confidence_score` as a zeroed object, not `null`.               | The README's `CompileResponse` type makes the field non-nullable. Task 2.5's acceptance bullet allows `null` on Haiku failure — this conflicts with the type. Per the system prompt's "README wins" rule, the type wins for now. We will resolve by either widening the type at Task 2.5 or returning a deliberate sentinel (`{0,0,0}` ⇒ "judge skipped"). Decision deferred to Task 2.5. |
+| 2026-05-15 | Hard limit of 50,000 chars on the `source` field at the API boundary.                          | Prevents accidental DoS via giant pastes during dev, with headroom for ~12k tokens of input — well above realistic prompt sizes. Easy to relax later.                                                                                                                                                                                                                                     |
+| 2026-05-15 | `formatIR()` lives in `lib/format-ir.ts` (not in `lib/types.ts` or co-located with the route). | The page renders IR; the route emits structured blocks. Format is a pure-function presentation concern shared by both, so a separate module keeps the route handler focused on transport and validation.                                                                                                                                                                                  |
