@@ -1,10 +1,16 @@
+"use client";
+
 import { Settings } from "lucide-react";
+
+import { MODEL_SHORT_LABELS, MODELS, type ModelKey } from "@/lib/pricing";
 
 type AppShellProps = {
   children: React.ReactNode;
+  model: ModelKey;
+  onModelChange: (next: ModelKey) => void;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, model, onModelChange }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="grid h-14 grid-cols-3 items-center border-b border-border px-6">
@@ -12,10 +18,29 @@ export function AppShell({ children }: AppShellProps) {
           <span className="text-foreground">prompt</span>
           <span className="text-muted-foreground">-ir</span>
         </div>
-        <div className="justify-self-center font-mono text-xs tracking-wide">
-          <span className="text-foreground">claude</span>
-          <span className="px-2 text-muted-foreground/40">|</span>
-          <span className="text-muted-foreground">openai</span>
+        <div
+          role="radiogroup"
+          aria-label="Compiler target model"
+          className="justify-self-center font-mono text-xs tracking-wide"
+        >
+          {MODELS.map((m, i) => (
+            <span key={m}>
+              {i > 0 && <span className="px-2 text-muted-foreground/40">|</span>}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={model === m}
+                onClick={() => onModelChange(m)}
+                className={
+                  model === m
+                    ? "text-foreground"
+                    : "text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                {MODEL_SHORT_LABELS[m]}
+              </button>
+            </span>
+          ))}
         </div>
         <div className="justify-self-end">
           <button
