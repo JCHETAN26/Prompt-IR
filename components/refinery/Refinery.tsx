@@ -2,19 +2,23 @@
 
 import { useMemo } from "react";
 
+import { CompileButton } from "@/components/compile/CompileButton";
 import { DensityBadge } from "@/components/meters/DensityBadge";
 import { TokenMeter } from "@/components/meters/TokenMeter";
 import { densityScore } from "@/lib/density";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
+import type { CompileState } from "@/lib/types";
 
 type RefineryProps = {
   value: string;
   onChange: (next: string) => void;
   model: ModelKey;
+  compileState: CompileState;
+  onCompile: () => void;
 };
 
-export function Refinery({ value, onChange, model }: RefineryProps) {
+export function Refinery({ value, onChange, model, compileState, onCompile }: RefineryProps) {
   const tokens = useMemo(() => countTokens(value, model), [value, model]);
   const density = useMemo(() => densityScore(value), [value]);
 
@@ -30,16 +34,23 @@ export function Refinery({ value, onChange, model }: RefineryProps) {
           <TokenMeter tokens={tokens} model={model} />
         </div>
       </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoComplete="off"
-        autoCorrect="off"
-        placeholder="Drop your messy logic, context, and requirements here..."
-        className="flex-1 resize-none bg-transparent px-6 py-5 font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-      />
+      <div className="relative flex flex-1 flex-col">
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          placeholder="Drop your messy logic, context, and requirements here..."
+          className="flex-1 resize-none bg-transparent px-6 pb-16 pt-5 font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+        />
+        <div className="pointer-events-none absolute bottom-4 right-4">
+          <div className="pointer-events-auto">
+            <CompileButton state={compileState} onCompile={onCompile} disabled={!value.trim()} />
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
