@@ -6,7 +6,7 @@ import type { CompileResponse } from "@/lib/types";
 
 import { POST } from "../route";
 
-// Mock the SDK wrapper so tests never hit the real API.
+// Mock the SDK wrapper + judge so tests never hit the real API.
 vi.mock("@/lib/anthropic", async () => {
   const actual = await vi.importActual<typeof import("@/lib/anthropic")>("@/lib/anthropic");
   return {
@@ -14,9 +14,14 @@ vi.mock("@/lib/anthropic", async () => {
     callCompiler: vi.fn(),
   };
 });
+vi.mock("@/lib/judge", () => ({
+  callJudge: vi.fn(),
+}));
 
 const { callCompiler } = await import("@/lib/anthropic");
+const { callJudge } = await import("@/lib/judge");
 const mockedCallCompiler = vi.mocked(callCompiler);
+const mockedCallJudge = vi.mocked(callJudge);
 
 function fullStubBody(source: string) {
   return JSON.stringify({
@@ -87,6 +92,9 @@ function badShape(): string {
 describe("POST /api/compile", () => {
   beforeEach(() => {
     mockedCallCompiler.mockReset();
+    mockedCallJudge.mockReset();
+    // Default: judge fails (returns null) unless a test sets it otherwise.
+    mockedCallJudge.mockResolvedValue(null);
   });
 
   it("returns 200 + parsed CompileResponse with injected meta_prompt_version", async () => {
@@ -166,6 +174,56 @@ describe("POST /api/compile", () => {
     const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
     expect(res.status).toBe(200);
     expect(mockedCallCompiler).toHaveBeenCalledTimes(1);
+  });
+
+  it("populates confidence_score from the judge when it succeeds", async () => {
+    mockSuccess(fullStubBody("anything"));
+    mockedCallJudge.mockResolvedValueOnce({
+      score: { specificity: 8, constraint_clarity: 9, formatting: 7 },
+      usage: { input_tokens: 80, output_tokens: 40 },
+    });
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as CompileResponse;
+    expect(body.metrics.confidence_score).toEqual({
+      specificity: 8,
+      constraint_clarity: 9,
+      formatting: 7,
+    });
+  });
+
+  it("returns confidence_score: null when the judge fails", async () => {
+    mockSuccess(fullStubBody("anything"));
+    mockedCallJudge.mockResolvedValueOnce(null);
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as CompileResponse;
+    expect(body.metrics.confidence_score).toBeNull();
+  });
+
+  it("does not call the judge when compile fails", async () => {
+    mockedCallCompiler.mockRejectedValueOnce(new Error("network"));
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(502);
+    expect(mockedCallJudge).not.toHaveBeenCalled();
+  });
+
+  it("passes the formatted IR to the judge in the active mode", async () => {
+    mockSuccess(fullStubBody("anything"));
+    mockedCallJudge.mockResolvedValueOnce({
+      score: { specificity: 5, constraint_clarity: 5, formatting: 5 },
+      usage: { input_tokens: 50, output_tokens: 20 },
+    });
+
+    await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(mockedCallJudge).toHaveBeenCalledTimes(1);
+    const [judgeSource, judgeIR] = mockedCallJudge.mock.calls[0];
+    expect(judgeSource).toBe("anything");
+    expect(judgeIR).toContain("<context>");
+    expect(judgeIR).toContain("<task>");
   });
 
   it("rejects malformed request JSON with 400", async () => {
