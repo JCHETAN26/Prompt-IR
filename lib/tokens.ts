@@ -2,13 +2,16 @@ import { getEncoding, type Tiktoken } from "js-tiktoken";
 
 import type { ModelKey } from "./pricing";
 
-// Both models map to o200k_base. It is exact for GPT-4o. For Claude it is
-// an approximation — Anthropic does not publish a client-side tokenizer,
-// and o200k_base typically lands within ~5% of Anthropic's count for
-// English prose. Treat the Claude count as a signal, not an exact match.
+// All models map to o200k_base. It is exact for GPT-4o; an approximation
+// for Claude (Anthropic does not publish a client-side tokenizer,
+// o200k_base lands within ~5% on English prose); and a rough proxy for
+// Gemini (Google's tokenizer is unicode-based and tends to count slightly
+// fewer tokens, so the meter is conservative). Treat non-GPT-4o counts as
+// a signal, not an exact match.
 const ENCODING_FOR_MODEL: Record<ModelKey, "o200k_base"> = {
   "claude-sonnet": "o200k_base",
   "gpt-4o": "o200k_base",
+  "gemini-flash": "o200k_base",
 };
 
 const encoderCache = new Map<string, Tiktoken>();

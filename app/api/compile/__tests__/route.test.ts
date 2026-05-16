@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AnthropicNotConfiguredError, OpenAINotConfiguredError } from "@/lib/compile";
+import {
+  AnthropicNotConfiguredError,
+  GeminiNotConfiguredError,
+  OpenAINotConfiguredError,
+} from "@/lib/compile";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import type { CompileResponse } from "@/lib/types";
 
@@ -62,10 +66,15 @@ function makeRequest(body: unknown, opts: { malformed?: boolean } = {}) {
   });
 }
 
-function mockSuccess(raw: string, provider: "anthropic" | "openai" = "anthropic") {
+function mockSuccess(raw: string, provider: "anthropic" | "openai" | "gemini" = "anthropic") {
+  const modelByProvider = {
+    anthropic: "claude-3-5-sonnet-20241022",
+    openai: "gpt-4o",
+    gemini: "gemini-2.5-flash",
+  } as const;
   mockedCallCompiler.mockResolvedValueOnce({
     raw,
-    model: provider === "anthropic" ? "claude-3-5-sonnet-20241022" : "gpt-4o",
+    model: modelByProvider[provider],
     provider,
     usage: {
       input_tokens: 100,
@@ -246,8 +255,8 @@ describe("POST /api/compile", () => {
     expect(mockedCallCompiler).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid mode with 400", async () => {
-    const res = await POST(makeRequest({ source: "ok", mode: "gemini" }));
+  it("rejects unsupported mode with 400", async () => {
+    const res = await POST(makeRequest({ source: "ok", mode: "mistral" }));
     expect(res.status).toBe(400);
     expect(mockedCallCompiler).not.toHaveBeenCalled();
   });
@@ -279,5 +288,21 @@ describe("POST /api/compile", () => {
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: string };
     expect(body.error).toMatch(/OPENAI_API_KEY/);
+  });
+
+  it("dispatches to the gemini provider when mode is gemini", async () => {
+    mockSuccess(fullStubBody("hello"), "gemini");
+    const res = await POST(makeRequest({ source: "hello", mode: "gemini" }));
+    expect(res.status).toBe(200);
+    expect(mockedCallCompiler).toHaveBeenCalledWith("hello", "gemini");
+  });
+
+  it("returns 503 when GEMINI_API_KEY is not configured (gemini mode)", async () => {
+    mockedCallCompiler.mockRejectedValueOnce(new GeminiNotConfiguredError());
+
+    const res = await POST(makeRequest({ source: "anything", mode: "gemini" }));
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/GEMINI_API_KEY/);
   });
 });

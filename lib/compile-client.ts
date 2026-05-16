@@ -49,5 +49,7 @@ export async function compileSource(
 }
 
 export function modeForModel(model: string): CompileMode {
-  return model === "gpt-4o" ? "openai" : "claude";
+  if (model === "gpt-4o") return "openai";
+  if (model === "gemini-flash") return "gemini";
+  return "claude";
 }
