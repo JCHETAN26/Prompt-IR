@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AnthropicNotConfiguredError } from "@/lib/anthropic";
+import { AnthropicNotConfiguredError, OpenAINotConfiguredError } from "@/lib/compile";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import type { CompileResponse } from "@/lib/types";
 
 import { POST } from "../route";
 
-// Mock the SDK wrapper + judge so tests never hit the real API.
-vi.mock("@/lib/anthropic", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/anthropic")>("@/lib/anthropic");
+// Mock the unified dispatcher + judge so tests never hit either real API.
+vi.mock("@/lib/compile", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/compile")>("@/lib/compile");
   return {
     ...actual,
     callCompiler: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock("@/lib/judge", () => ({
   callJudge: vi.fn(),
 }));
 
-const { callCompiler } = await import("@/lib/anthropic");
+const { callCompiler } = await import("@/lib/compile");
 const { callJudge } = await import("@/lib/judge");
 const mockedCallCompiler = vi.mocked(callCompiler);
 const mockedCallJudge = vi.mocked(callJudge);
@@ -62,15 +62,16 @@ function makeRequest(body: unknown, opts: { malformed?: boolean } = {}) {
   });
 }
 
-function mockSuccess(raw: string) {
+function mockSuccess(raw: string, provider: "anthropic" | "openai" = "anthropic") {
   mockedCallCompiler.mockResolvedValueOnce({
     raw,
-    model: "claude-3-5-sonnet-20241022",
+    model: provider === "anthropic" ? "claude-3-5-sonnet-20241022" : "gpt-4o",
+    provider,
     usage: {
       input_tokens: 100,
       output_tokens: 50,
-      cache_creation_input_tokens: 0,
-      cache_read_input_tokens: 0,
+      cached_input_tokens: 0,
+      cache_write_tokens: 0,
     },
   });
 }
@@ -262,5 +263,21 @@ describe("POST /api/compile", () => {
     mockSuccess(fullStubBody("hello"));
     await POST(makeRequest({ source: "hello", mode: "openai" }));
     expect(mockedCallCompiler).toHaveBeenCalledWith("hello", "openai");
+  });
+
+  it("dispatches to the openai provider when mode is openai", async () => {
+    mockSuccess(fullStubBody("hello"), "openai");
+    const res = await POST(makeRequest({ source: "hello", mode: "openai" }));
+    expect(res.status).toBe(200);
+    expect(mockedCallCompiler).toHaveBeenCalledWith("hello", "openai");
+  });
+
+  it("returns 503 when OPENAI_API_KEY is not configured (openai mode)", async () => {
+    mockedCallCompiler.mockRejectedValueOnce(new OpenAINotConfiguredError());
+
+    const res = await POST(makeRequest({ source: "anything", mode: "openai" }));
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/OPENAI_API_KEY/);
   });
 });
