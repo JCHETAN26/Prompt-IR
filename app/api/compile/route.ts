@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { AnthropicNotConfiguredError, callCompiler, type CompileUsage } from "@/lib/anthropic";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
+import { PRICING } from "@/lib/pricing";
 import type { CompileError, CompileRequest, CompileResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,41 +37,31 @@ function validate(body: unknown): Validated {
   return { ok: true, data: { source: b.source, mode: b.mode } };
 }
 
-function buildStub({ source }: CompileRequest): CompileResponse {
-  const trimmed = source.trim();
-  return {
-    ir: {
-      context: trimmed,
-      constraints: "// stub: real constraints arrive in Task 2.3",
-      rules: "// stub: real rules arrive in Task 2.3",
-      task: "// stub: real task block arrives in Task 2.3",
-    },
-    diff: [
-      {
-        original: "(stub diff entry)",
-        replacement: null,
-        reason: "Stub response. Real refinements land when the Anthropic SDK is wired in Task 2.3.",
-        tokens_saved: 0,
-        category: "filler",
-      },
-    ],
-    metrics: {
-      compression_pct: 0,
-      density_score: 0,
-      confidence_score: {
-        specificity: 0,
-        constraint_clarity: 0,
-        formatting: 0,
-      },
-    },
-    rationale: {
-      context: "stub: rationale arrives in Task 2.3",
-      constraints: "stub: rationale arrives in Task 2.3",
-      rules: "stub: rationale arrives in Task 2.3",
-      task: "stub: rationale arrives in Task 2.3",
-    },
-    meta_prompt_version: META_PROMPT_VERSION,
-  };
+function logCompile(model: string, usage: CompileUsage): void {
+  // Sonnet cached-input is ~10% of base; cache creation is ~125%.
+  const sonnet = PRICING["claude-sonnet"];
+  const baseInputRate = sonnet.input / 1_000_000;
+  const cacheReadRate = sonnet.cachedInput / 1_000_000;
+  const cacheWriteRate = baseInputRate * 1.25;
+  const outputRate = sonnet.output / 1_000_000;
+
+  const baseInputCost = usage.input_tokens * baseInputRate;
+  const cacheReadCost = usage.cache_read_input_tokens * cacheReadRate;
+  const cacheWriteCost = usage.cache_creation_input_tokens * cacheWriteRate;
+  const outputCost = usage.output_tokens * outputRate;
+  const total = baseInputCost + cacheReadCost + cacheWriteCost + outputCost;
+
+  const cacheState =
+    usage.cache_read_input_tokens > 0
+      ? `HIT (${usage.cache_read_input_tokens} tok cached)`
+      : usage.cache_creation_input_tokens > 0
+        ? `MISS (${usage.cache_creation_input_tokens} tok cached for next call)`
+        : "none";
+
+  console.log(
+    `[compile] model=${model} in=${usage.input_tokens} out=${usage.output_tokens} ` +
+      `cache=${cacheState} cost=$${total.toFixed(5)}`
+  );
 }
 
 export async function POST(req: Request): Promise<NextResponse<CompileResponse | CompileError>> {
@@ -85,5 +77,40 @@ export async function POST(req: Request): Promise<NextResponse<CompileResponse |
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json(buildStub(result.data));
+  let llmResult;
+  try {
+    llmResult = await callCompiler(result.data.source, result.data.mode);
+  } catch (err) {
+    if (err instanceof AnthropicNotConfiguredError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
+    const message = err instanceof Error ? err.message : "Unknown error from the compiler.";
+    return NextResponse.json({ error: "Compiler call failed.", details: message }, { status: 502 });
+  }
+
+  logCompile(llmResult.model, llmResult.usage);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(llmResult.raw);
+  } catch {
+    return NextResponse.json(
+      {
+        error: "Compiler returned malformed JSON.",
+        details:
+          "The model's output was not valid JSON. Task 2.4 will add a retry pass with stricter framing.",
+      },
+      { status: 502 }
+    );
+  }
+
+  // The Meta-Prompt deliberately doesn't ask the model to populate the
+  // version (it shouldn't know its own version). We inject server-side so
+  // every response carries the version that produced it.
+  const response: CompileResponse = {
+    ...(parsed as Omit<CompileResponse, "meta_prompt_version">),
+    meta_prompt_version: META_PROMPT_VERSION,
+  };
+
+  return NextResponse.json(response);
 }
