@@ -12,13 +12,21 @@ type IROutputProps = {
   ir: string | null;
   diff: DiffEntry[] | null;
   errorMessage: string | null;
+  errorDetails: string | null;
   model: ModelKey;
   compileState: CompileState;
 };
 
 const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
 
-export function IROutput({ ir, diff, errorMessage, model, compileState }: IROutputProps) {
+export function IROutput({
+  ir,
+  diff,
+  errorMessage,
+  errorDetails,
+  model,
+  compileState,
+}: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
   const isCompiling = compileState === "compiling";
@@ -48,7 +56,7 @@ export function IROutput({ ir, diff, errorMessage, model, compileState }: IROutp
       </div>
       <div className="flex-1 overflow-auto px-6 py-5 font-mono text-sm leading-relaxed">
         {isError ? (
-          <ErrorState message={errorMessage} />
+          <ErrorState message={errorMessage} details={errorDetails} />
         ) : isCompiling ? (
           <CompilingState />
         ) : isEmpty ? (
@@ -95,13 +103,18 @@ function EmptyState() {
   );
 }
 
-function ErrorState({ message }: { message: string | null }) {
+function ErrorState({ message, details }: { message: string | null; details: string | null }) {
   return (
     <div className="flex flex-col gap-2 text-sm">
       <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-destructive">
         error
       </span>
       <span className="text-muted-foreground">{message ?? "Unknown error."}</span>
+      {details && (
+        <pre className="whitespace-pre-wrap break-words rounded border border-border bg-card/40 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground/80">
+          {details}
+        </pre>
+      )}
       <span className="text-[11px] text-muted-foreground/60">
         Press ⌘↵ to retry, or adjust the source and recompile.
       </span>

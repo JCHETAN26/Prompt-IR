@@ -18,6 +18,7 @@ export default function Home() {
   const [model, setModel] = useState<ModelKey>("claude-sonnet");
   const [compileState, setCompileState] = useState<CompileState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const mode = modeForModel(model);
@@ -27,11 +28,13 @@ export default function Home() {
     if (!source.trim() || compileState === "compiling") return;
     setCompileState("compiling");
     setErrorMessage(null);
+    setErrorDetails(null);
 
     const result = await compileSource(source, modeForModel(model));
 
     if (!result.ok) {
       setErrorMessage(result.error);
+      setErrorDetails(result.details ?? null);
       setCompileState("error");
       return;
     }
@@ -81,6 +84,7 @@ export default function Home() {
             ir={ir}
             diff={response?.diff ?? null}
             errorMessage={errorMessage}
+            errorDetails={errorDetails}
             model={model}
             compileState={compileState}
           />
