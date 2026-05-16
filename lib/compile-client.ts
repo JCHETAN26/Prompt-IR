@@ -4,7 +4,7 @@ import type { CompileMode, CompileRequest, CompileResponse } from "./types";
 
 export type CompileClientResult =
   | { ok: true; data: CompileResponse }
-  | { ok: false; error: string };
+  | { ok: false; error: string; details?: string };
 
 export async function compileSource(
   source: string,
@@ -27,15 +27,22 @@ export async function compileSource(
   try {
     payload = await res.json();
   } catch {
-    return { ok: false, error: "Server returned a non-JSON response." };
+    return {
+      ok: false,
+      error: "Server returned a non-JSON response.",
+      details: `HTTP ${res.status}`,
+    };
   }
 
   if (!res.ok) {
-    const message =
-      typeof payload === "object" && payload !== null && "error" in payload
-        ? String((payload as { error: unknown }).error)
-        : `Request failed with status ${res.status}.`;
-    return { ok: false, error: message };
+    const obj = (typeof payload === "object" && payload !== null ? payload : {}) as Record<
+      string,
+      unknown
+    >;
+    const error =
+      typeof obj.error === "string" ? obj.error : `Request failed with status ${res.status}.`;
+    const details = typeof obj.details === "string" ? obj.details : undefined;
+    return { ok: false, error, details };
   }
 
   return { ok: true, data: payload as CompileResponse };

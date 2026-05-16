@@ -15,6 +15,12 @@ import type { CompileError, CompileMode, CompileRequest, CompileResponse } from 
 
 export const runtime = "nodejs";
 
+// Vercel Hobby plan caps function duration at 60s. A compile on a large
+// (5k+ token) source can run 20-30s for Sonnet + up to 5s for the Haiku
+// judge + a potential retry on parse failure — all well over the default
+// 10s ceiling. 60s gives breathing room without inviting runaway jobs.
+export const maxDuration = 60;
+
 const MAX_SOURCE_CHARS = 50_000;
 
 type Validated = { ok: true; data: CompileRequest } | { ok: false; status: number; error: string };
