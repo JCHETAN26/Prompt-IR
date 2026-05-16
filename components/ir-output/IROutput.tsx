@@ -16,6 +16,8 @@ type IROutputProps = {
   errorDetails: string | null;
   model: ModelKey;
   compileState: CompileState;
+  /** True when the IR was produced by a provider different from the active toggle. */
+  isStale: boolean;
 };
 
 const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
@@ -27,6 +29,7 @@ export function IROutput({
   errorDetails,
   model,
   compileState,
+  isStale,
 }: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
@@ -43,17 +46,22 @@ export function IROutput({
       }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
-      <div className="flex h-10 items-center justify-between border-b border-border px-6">
+      <div className="flex h-10 items-center justify-between gap-3 border-b border-border px-6">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           ir
         </span>
-        {isError ? (
-          <span className="font-mono text-[11px] text-destructive">compile failed</span>
-        ) : isEmpty ? (
-          <span className="font-mono text-[11px] text-muted-foreground/60">awaiting compile</span>
-        ) : (
-          <TokenMeter tokens={tokens} model={model} />
-        )}
+        <div className="flex items-center gap-3">
+          {isStale && !isEmpty && (
+            <span className="font-mono text-[11px] text-foreground/70">recompile to apply</span>
+          )}
+          {isError ? (
+            <span className="font-mono text-[11px] text-destructive">compile failed</span>
+          ) : isEmpty ? (
+            <span className="font-mono text-[11px] text-muted-foreground/60">awaiting compile</span>
+          ) : (
+            <TokenMeter tokens={tokens} model={model} />
+          )}
+        </div>
       </div>
       <div className="flex-1 overflow-auto px-6 py-5 font-mono text-sm leading-relaxed">
         {isError ? (
