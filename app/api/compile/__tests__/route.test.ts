@@ -70,6 +70,20 @@ function mockSuccess(raw: string) {
   });
 }
 
+function badShape(): string {
+  // Missing ir.task — passes JSON.parse but fails Zod schema.
+  return JSON.stringify({
+    ir: { context: "x", constraints: "y", rules: "z" },
+    diff: [],
+    metrics: {
+      compression_pct: 0,
+      density_score: 0,
+      confidence_score: { specificity: 0, constraint_clarity: 0, formatting: 0 },
+    },
+    rationale: { context: "", constraints: "", rules: "", task: "" },
+  });
+}
+
 describe("POST /api/compile", () => {
   beforeEach(() => {
     mockedCallCompiler.mockReset();
@@ -106,13 +120,52 @@ describe("POST /api/compile", () => {
     expect(body.details).toMatch(/rate limit/);
   });
 
-  it("returns 502 when the model returns non-JSON text", async () => {
+  it("retries once when the first response is non-JSON and succeeds on retry", async () => {
     mockSuccess("This is not JSON at all.");
+    mockSuccess(fullStubBody("anything"));
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(200);
+    expect(mockedCallCompiler).toHaveBeenCalledTimes(2);
+
+    // The second call receives previousAttempt with the bad raw + parse error.
+    const secondCallArgs = mockedCallCompiler.mock.calls[1];
+    expect(secondCallArgs[0]).toBe("anything");
+    expect(secondCallArgs[1]).toBe("claude");
+    expect(secondCallArgs[2]?.previousAttempt?.raw).toBe("This is not JSON at all.");
+    expect(secondCallArgs[2]?.previousAttempt?.parseError).toMatch(/Invalid JSON/);
+  });
+
+  it("retries when the first response has wrong shape and succeeds on retry", async () => {
+    mockSuccess(badShape());
+    mockSuccess(fullStubBody("anything"));
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(200);
+    expect(mockedCallCompiler).toHaveBeenCalledTimes(2);
+
+    const secondCallArgs = mockedCallCompiler.mock.calls[1];
+    expect(secondCallArgs[2]?.previousAttempt?.parseError).toMatch(/Schema mismatch/);
+  });
+
+  it("returns 502 when both attempts return malformed output", async () => {
+    mockSuccess("not json");
+    mockSuccess("still not json");
 
     const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
     expect(res.status).toBe(502);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/malformed JSON/i);
+    expect(mockedCallCompiler).toHaveBeenCalledTimes(2);
+    const body = (await res.json()) as { error: string; details?: string };
+    expect(body.error).toMatch(/twice/i);
+    expect(body.details).toBeDefined();
+  });
+
+  it("does not retry when the first response parses successfully", async () => {
+    mockSuccess(fullStubBody("anything"));
+
+    const res = await POST(makeRequest({ source: "anything", mode: "claude" }));
+    expect(res.status).toBe(200);
+    expect(mockedCallCompiler).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed request JSON with 400", async () => {
