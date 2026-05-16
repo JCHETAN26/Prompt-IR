@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { AnthropicNotConfiguredError, callCompiler, type CompileUsage } from "@/lib/anthropic";
+import {
+  AnthropicNotConfiguredError,
+  callCompiler,
+  type CompileLLMResult,
+  type CompileUsage,
+} from "@/lib/anthropic";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
+import { parseIR, type CompilerOutput } from "@/lib/parse-ir";
 import { PRICING } from "@/lib/pricing";
-import type { CompileError, CompileRequest, CompileResponse } from "@/lib/types";
+import type { CompileError, CompileMode, CompileRequest, CompileResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -77,40 +83,77 @@ export async function POST(req: Request): Promise<NextResponse<CompileResponse |
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  let llmResult;
-  try {
-    llmResult = await callCompiler(result.data.source, result.data.mode);
-  } catch (err) {
-    if (err instanceof AnthropicNotConfiguredError) {
-      return NextResponse.json({ error: err.message }, { status: 503 });
-    }
-    const message = err instanceof Error ? err.message : "Unknown error from the compiler.";
-    return NextResponse.json({ error: "Compiler call failed.", details: message }, { status: 502 });
-  }
+  const compileResult = await compileWithRetry(result.data.source, result.data.mode);
 
-  logCompile(llmResult.model, llmResult.usage);
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(llmResult.raw);
-  } catch {
+  if (!compileResult.ok) {
     return NextResponse.json(
+      { error: compileResult.error, details: compileResult.details },
       {
-        error: "Compiler returned malformed JSON.",
-        details:
-          "The model's output was not valid JSON. Task 2.4 will add a retry pass with stricter framing.",
-      },
-      { status: 502 }
+        status: compileResult.status,
+      }
     );
   }
 
-  // The Meta-Prompt deliberately doesn't ask the model to populate the
-  // version (it shouldn't know its own version). We inject server-side so
-  // every response carries the version that produced it.
   const response: CompileResponse = {
-    ...(parsed as Omit<CompileResponse, "meta_prompt_version">),
+    ...compileResult.data,
     meta_prompt_version: META_PROMPT_VERSION,
   };
 
   return NextResponse.json(response);
+}
+
+type CompileWithRetryResult =
+  | { ok: true; data: CompilerOutput }
+  | { ok: false; status: number; error: string; details?: string };
+
+async function compileWithRetry(
+  source: string,
+  mode: CompileMode
+): Promise<CompileWithRetryResult> {
+  let llmResult: CompileLLMResult;
+  try {
+    llmResult = await callCompiler(source, mode);
+  } catch (err) {
+    return mapCompilerError(err);
+  }
+  logCompile(llmResult.model, llmResult.usage);
+
+  let parse = parseIR(llmResult.raw);
+  if (parse.ok) {
+    return { ok: true, data: parse.data };
+  }
+
+  // One retry with the prior attempt + parse error as in-conversation
+  // context. The cached system prompt stays the same, so this retry still
+  // hits the cache read path on the static portion.
+  console.log(`[compile] parse failed (${parse.error}); retrying once`);
+
+  try {
+    llmResult = await callCompiler(source, mode, {
+      previousAttempt: { raw: llmResult.raw, parseError: parse.error },
+    });
+  } catch (err) {
+    return mapCompilerError(err);
+  }
+  logCompile(llmResult.model, llmResult.usage);
+
+  parse = parseIR(llmResult.raw);
+  if (parse.ok) {
+    return { ok: true, data: parse.data };
+  }
+
+  return {
+    ok: false,
+    status: 502,
+    error: "Compiler returned malformed output twice.",
+    details: parse.error,
+  };
+}
+
+function mapCompilerError(err: unknown): CompileWithRetryResult {
+  if (err instanceof AnthropicNotConfiguredError) {
+    return { ok: false, status: 503, error: err.message };
+  }
+  const message = err instanceof Error ? err.message : "Unknown error from the compiler.";
+  return { ok: false, status: 502, error: "Compiler call failed.", details: message };
 }
