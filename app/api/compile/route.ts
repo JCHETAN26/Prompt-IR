@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   AnthropicNotConfiguredError,
+  GeminiNotConfiguredError,
   OpenAINotConfiguredError,
   callCompiler,
   type CompileResult,
@@ -46,15 +47,21 @@ function validate(body: unknown): Validated {
       error: `Field 'source' exceeds the ${MAX_SOURCE_CHARS}-char limit for v1.`,
     };
   }
-  if (b.mode !== "claude" && b.mode !== "openai") {
-    return { ok: false, status: 400, error: "Field 'mode' must be 'claude' or 'openai'." };
+  if (b.mode !== "claude" && b.mode !== "openai" && b.mode !== "gemini") {
+    return {
+      ok: false,
+      status: 400,
+      error: "Field 'mode' must be 'claude', 'openai', or 'gemini'.",
+    };
   }
 
   return { ok: true, data: { source: b.source, mode: b.mode } };
 }
 
 function pricingKeyFor(provider: Provider): ModelKey {
-  return provider === "openai" ? "gpt-4o" : "claude-sonnet";
+  if (provider === "openai") return "gpt-4o";
+  if (provider === "gemini") return "gemini-flash";
+  return "claude-sonnet";
 }
 
 function logCompile(provider: Provider, model: string, usage: UnifiedUsage): void {
@@ -184,7 +191,11 @@ async function compileWithRetry(
 }
 
 function mapCompilerError(err: unknown): CompileWithRetryResult {
-  if (err instanceof AnthropicNotConfiguredError || err instanceof OpenAINotConfiguredError) {
+  if (
+    err instanceof AnthropicNotConfiguredError ||
+    err instanceof OpenAINotConfiguredError ||
+    err instanceof GeminiNotConfiguredError
+  ) {
     return { ok: false, status: 503, error: err.message };
   }
   const message = err instanceof Error ? err.message : "Unknown error from the compiler.";

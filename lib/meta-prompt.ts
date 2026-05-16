@@ -1,6 +1,6 @@
 import type { CompileMode } from "./types";
 
-export const META_PROMPT_VERSION = "1.0.0";
+export const META_PROMPT_VERSION = "1.1.0";
 
 /**
  * Build the system prompt sent to the compiler model.
@@ -79,6 +79,9 @@ const DIFF_CATEGORY_GUIDE = `DIFF CATEGORIES — when to use each:
 function modeNote(mode: CompileMode): string {
   if (mode === "claude") {
     return `MODE: claude — the renderer wraps "ir.*" fields in <context>, <constraints>, <rules>, <task> XML tags. Claude treats those tags as attention anchors; you may freely use directive language inside the field values. Nesting more XML inside a field is permitted but rarely useful.`;
+  }
+  if (mode === "gemini") {
+    return `MODE: gemini — the renderer wraps "ir.*" fields in "## Context", "## Constraints", "## Rules", "## Task" Markdown headings. Gemini parses Markdown structure well and gets the JSON envelope enforced by response_mime_type, so you can keep field values plain — bullet lists are fine for genuinely enumerable content, code fragments stay verbatim, and avoid embedded XML tags (they render as literal text in Markdown).`;
   }
   return `MODE: openai — the renderer wraps "ir.*" fields in "## Context", "## Constraints", "## Rules", "## Task" Markdown headings. Do NOT embed XML-like tags in field values — they render as literal text in Markdown. Use plain prose inside each field; bullet lists are fine when the content is genuinely enumerable.`;
 }

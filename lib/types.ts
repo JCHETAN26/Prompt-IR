@@ -1,6 +1,6 @@
 export type CompileState = "idle" | "compiling" | "done" | "error";
 
-export type CompileMode = "claude" | "openai";
+export type CompileMode = "claude" | "openai" | "gemini";
 
 export type CompileRequest = {
   source: string;

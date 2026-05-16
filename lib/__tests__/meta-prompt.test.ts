@@ -67,12 +67,24 @@ describe("buildMetaPrompt", () => {
     expect(out).toMatch(/Markdown headings/);
   });
 
+  it("emits a gemini-specific note referencing response_mime_type", () => {
+    const out = buildMetaPrompt({ mode: "gemini" });
+    expect(out).toMatch(/MODE: gemini/);
+    expect(out).toMatch(/response_mime_type/);
+    expect(out).toMatch(/Markdown headings/);
+  });
+
   it("differs between modes only in the mode-specific block", () => {
     const claude = buildMetaPrompt({ mode: "claude" });
     const openai = buildMetaPrompt({ mode: "openai" });
+    const gemini = buildMetaPrompt({ mode: "gemini" });
     expect(claude).not.toBe(openai);
-    expect(claude.replace(/MODE: claude[\s\S]*?(?=\n\nNow compile)/, "")).toBe(
-      openai.replace(/MODE: openai[\s\S]*?(?=\n\nNow compile)/, "")
-    );
+    expect(claude).not.toBe(gemini);
+    expect(openai).not.toBe(gemini);
+
+    const stripMode = (s: string, mode: string) =>
+      s.replace(new RegExp(`MODE: ${mode}[\\s\\S]*?(?=\\n\\nNow compile)`), "");
+    expect(stripMode(claude, "claude")).toBe(stripMode(openai, "openai"));
+    expect(stripMode(claude, "claude")).toBe(stripMode(gemini, "gemini"));
   });
 });
