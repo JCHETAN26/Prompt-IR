@@ -2,15 +2,17 @@ import { NextResponse } from "next/server";
 
 import {
   AnthropicNotConfiguredError,
+  OpenAINotConfiguredError,
   callCompiler,
-  type CompileLLMResult,
-  type CompileUsage,
-} from "@/lib/anthropic";
+  type CompileResult,
+  type Provider,
+  type UnifiedUsage,
+} from "@/lib/compile";
 import { formatIR } from "@/lib/format-ir";
 import { callJudge } from "@/lib/judge";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import { parseIR, type CompilerOutput } from "@/lib/parse-ir";
-import { PRICING } from "@/lib/pricing";
+import { PRICING, type ModelKey } from "@/lib/pricing";
 import type { CompileError, CompileMode, CompileRequest, CompileResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -51,29 +53,30 @@ function validate(body: unknown): Validated {
   return { ok: true, data: { source: b.source, mode: b.mode } };
 }
 
-function logCompile(model: string, usage: CompileUsage): void {
-  // Sonnet cached-input is ~10% of base; cache creation is ~125%.
-  const sonnet = PRICING["claude-sonnet"];
-  const baseInputRate = sonnet.input / 1_000_000;
-  const cacheReadRate = sonnet.cachedInput / 1_000_000;
-  const cacheWriteRate = baseInputRate * 1.25;
-  const outputRate = sonnet.output / 1_000_000;
+function pricingKeyFor(provider: Provider): ModelKey {
+  return provider === "openai" ? "gpt-4o" : "claude-sonnet";
+}
 
-  const baseInputCost = usage.input_tokens * baseInputRate;
-  const cacheReadCost = usage.cache_read_input_tokens * cacheReadRate;
-  const cacheWriteCost = usage.cache_creation_input_tokens * cacheWriteRate;
-  const outputCost = usage.output_tokens * outputRate;
-  const total = baseInputCost + cacheReadCost + cacheWriteCost + outputCost;
+function logCompile(provider: Provider, model: string, usage: UnifiedUsage): void {
+  const rates = PRICING[pricingKeyFor(provider)];
 
-  const cacheState =
-    usage.cache_read_input_tokens > 0
-      ? `HIT (${usage.cache_read_input_tokens} tok cached)`
-      : usage.cache_creation_input_tokens > 0
-        ? `MISS (${usage.cache_creation_input_tokens} tok cached for next call)`
-        : "none";
+  const baseInputCost = (usage.input_tokens * rates.input) / 1_000_000;
+  const cachedInputCost = (usage.cached_input_tokens * rates.cachedInput) / 1_000_000;
+  // Anthropic-only: 25% premium for cache writes. OpenAI auto-caches with
+  // no write surcharge, so this term is 0 for them.
+  const cacheWriteCost = (usage.cache_write_tokens * rates.input * 1.25) / 1_000_000;
+  const outputCost = (usage.output_tokens * rates.output) / 1_000_000;
+  const total = baseInputCost + cachedInputCost + cacheWriteCost + outputCost;
+
+  let cacheState = "none";
+  if (usage.cached_input_tokens > 0) {
+    cacheState = `HIT (${usage.cached_input_tokens} tok cached)`;
+  } else if (usage.cache_write_tokens > 0) {
+    cacheState = `MISS (${usage.cache_write_tokens} tok cached for next call)`;
+  }
 
   console.log(
-    `[compile] model=${model} in=${usage.input_tokens} out=${usage.output_tokens} ` +
+    `[compile] provider=${provider} model=${model} in=${usage.input_tokens} out=${usage.output_tokens} ` +
       `cache=${cacheState} cost=$${total.toFixed(5)}`
   );
 }
@@ -143,22 +146,19 @@ async function compileWithRetry(
   source: string,
   mode: CompileMode
 ): Promise<CompileWithRetryResult> {
-  let llmResult: CompileLLMResult;
+  let llmResult: CompileResult;
   try {
     llmResult = await callCompiler(source, mode);
   } catch (err) {
     return mapCompilerError(err);
   }
-  logCompile(llmResult.model, llmResult.usage);
+  logCompile(llmResult.provider, llmResult.model, llmResult.usage);
 
   let parse = parseIR(llmResult.raw);
   if (parse.ok) {
     return { ok: true, data: parse.data };
   }
 
-  // One retry with the prior attempt + parse error as in-conversation
-  // context. The cached system prompt stays the same, so this retry still
-  // hits the cache read path on the static portion.
   console.log(`[compile] parse failed (${parse.error}); retrying once`);
 
   try {
@@ -168,7 +168,7 @@ async function compileWithRetry(
   } catch (err) {
     return mapCompilerError(err);
   }
-  logCompile(llmResult.model, llmResult.usage);
+  logCompile(llmResult.provider, llmResult.model, llmResult.usage);
 
   parse = parseIR(llmResult.raw);
   if (parse.ok) {
@@ -184,7 +184,7 @@ async function compileWithRetry(
 }
 
 function mapCompilerError(err: unknown): CompileWithRetryResult {
-  if (err instanceof AnthropicNotConfiguredError) {
+  if (err instanceof AnthropicNotConfiguredError || err instanceof OpenAINotConfiguredError) {
     return { ok: false, status: 503, error: err.message };
   }
   const message = err instanceof Error ? err.message : "Unknown error from the compiler.";
