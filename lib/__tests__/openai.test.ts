@@ -19,7 +19,7 @@ afterEach(() => {
   delete process.env.OPENAI_API_KEY;
 });
 
-const { callOpenAI, OpenAINotConfiguredError } = await import("../openai");
+const { callOpenAI } = await import("../openai");
 
 function openaiResponse(
   jsonText: string,

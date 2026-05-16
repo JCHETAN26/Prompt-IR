@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 
+import { DiffView } from "@/components/diff/DiffView";
 import { TokenMeter } from "@/components/meters/TokenMeter";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
@@ -126,41 +127,7 @@ function FilledState({ ir, diff }: { ir: string; diff: DiffEntry[] | null }) {
   return (
     <div className="flex flex-col gap-6">
       <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
-      {diff && diff.length > 0 && <DiffPreview diff={diff} />}
-    </div>
-  );
-}
-
-function DiffPreview({ diff }: { diff: DiffEntry[] }) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-border pt-4">
-      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        diff (preview)
-      </span>
-      <ul className="flex flex-col gap-2 text-[12px]">
-        {diff.map((entry, i) => (
-          <li key={i} className="flex flex-col gap-0.5">
-            <span className="text-muted-foreground/80">
-              <span className="text-muted-foreground/60">[{entry.category}]</span>{" "}
-              <span className="line-through decoration-destructive/60">{entry.original}</span>
-              {entry.replacement && (
-                <>
-                  <span className="px-1.5 text-muted-foreground/40">→</span>
-                  <span className="text-success">{entry.replacement}</span>
-                </>
-              )}
-            </span>
-            <span className="text-[11px] text-muted-foreground/60">
-              {entry.reason}
-              {entry.tokens_saved > 0 && (
-                <span className="ml-2 tabular-nums text-foreground/70">
-                  −{entry.tokens_saved} tok
-                </span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {diff && diff.length > 0 && <DiffView diff={diff} />}
     </div>
   );
 }
