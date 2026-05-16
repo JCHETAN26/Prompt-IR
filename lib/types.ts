@@ -34,7 +34,8 @@ export type CompileResponse = {
   metrics: {
     compression_pct: number;
     density_score: number;
-    confidence_score: ConfidenceScore;
+    /** Null when the Haiku judge failed (timeout, missing key, schema mismatch). UI must degrade gracefully. */
+    confidence_score: ConfidenceScore | null;
   };
   rationale: {
     context: string;

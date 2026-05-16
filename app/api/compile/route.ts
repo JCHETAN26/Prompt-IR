@@ -6,6 +6,8 @@ import {
   type CompileLLMResult,
   type CompileUsage,
 } from "@/lib/anthropic";
+import { formatIR } from "@/lib/format-ir";
+import { callJudge } from "@/lib/judge";
 import { META_PROMPT_VERSION } from "@/lib/meta-prompt";
 import { parseIR, type CompilerOutput } from "@/lib/parse-ir";
 import { PRICING } from "@/lib/pricing";
@@ -94,8 +96,33 @@ export async function POST(req: Request): Promise<NextResponse<CompileResponse |
     );
   }
 
+  // Judge runs sequentially after a successful compile. It has its own
+  // 5s timeout and returns null on any failure, so we never block the
+  // user on a slow / unavailable Haiku.
+  const irText = formatIR(compileResult.data.ir, result.data.mode);
+  const judgeResult = await callJudge(result.data.source, irText);
+  if (judgeResult) {
+    const judgeCost =
+      (judgeResult.usage.input_tokens * PRICING["claude-sonnet"].input * (1 / 60)) / 1_000_000 +
+      (judgeResult.usage.output_tokens * PRICING["claude-sonnet"].output * (1 / 60)) / 1_000_000;
+    // Haiku is ~1/60 the price of Sonnet on the input/output split; rough
+    // estimate is fine for logging. Real per-model rates would need a Haiku
+    // entry in pricing.ts — out of scope here.
+    console.log(
+      `[judge] in=${judgeResult.usage.input_tokens} out=${judgeResult.usage.output_tokens} ` +
+        `score=${judgeResult.score.specificity}/${judgeResult.score.constraint_clarity}/${judgeResult.score.formatting} ` +
+        `cost≈$${judgeCost.toFixed(5)}`
+    );
+  } else {
+    console.log(`[judge] failed; confidence_score will be null`);
+  }
+
   const response: CompileResponse = {
     ...compileResult.data,
+    metrics: {
+      ...compileResult.data.metrics,
+      confidence_score: judgeResult?.score ?? null,
+    },
     meta_prompt_version: META_PROMPT_VERSION,
   };
 

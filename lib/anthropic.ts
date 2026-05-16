@@ -19,7 +19,7 @@ export class AnthropicNotConfiguredError extends Error {
 
 let client: Anthropic | null = null;
 
-function getClient(): Anthropic {
+export function getClient(): Anthropic {
   if (client) return client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new AnthropicNotConfiguredError();
