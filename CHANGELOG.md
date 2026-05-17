@@ -79,9 +79,11 @@ in=N out=N cache=HIT/MISS/none cost=$X.XXXXX`.
 
 #### Export and persistence
 
-- **Export menu** below the IR: download `.md` (wraps Claude XML in
-  ```xml fences, passes Markdown through unwrapped), download `.txt`(verbatim), and "copy for cursor" (prefixes a`// === Prompt-IR
-  compiled prompt ===` framing comment for paste-into-Cursor workflows).
+- **Export menu** below the IR: download `.md` (wraps Claude XML in a
+  fenced `xml` code block; passes Markdown through unwrapped), download
+  `.txt` (verbatim), and "copy for cursor" (prefixes a
+  `// === Prompt-IR compiled prompt ===` framing comment for
+  paste-into-Cursor workflows).
 - **Savings ledger** in the footer, localStorage-backed. Cumulative
   tokens and dollars saved across sessions with a `clear` button guarded
   by `window.confirm`. Honest about losses: shows negative deltas when
