@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IROutput } from "@/components/ir-output/IROutput";
 import { CommandPalette, type PaletteCommand } from "@/components/palette/CommandPalette";
 import { Refinery } from "@/components/refinery/Refinery";
+import { SeoSections } from "@/components/seo/SeoSections";
 import { AppShell } from "@/components/shell/AppShell";
 import { compileSource, modeForModel } from "@/lib/compile-client";
 import { runDryRun, type DryRunResponse } from "@/lib/dry-run-client";
@@ -168,7 +169,7 @@ export default function Home() {
   return (
     <>
       <AppShell model={model} onModelChange={setModel}>
-        <div className="grid flex-1 grid-cols-2 divide-x divide-border">
+        <div className="grid min-h-[calc(100vh-6rem)] grid-cols-2 divide-x divide-border">
           <Refinery
             value={source}
             onChange={setSource}
@@ -194,6 +195,7 @@ export default function Home() {
             }}
           />
         </div>
+        <SeoSections />
       </AppShell>
       <CommandPalette open={paletteOpen} onClose={closePalette} commands={commands} />
     </>
