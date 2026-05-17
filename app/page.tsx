@@ -10,7 +10,8 @@ import { compileSource, modeForModel } from "@/lib/compile-client";
 import { runDryRun, type DryRunResponse } from "@/lib/dry-run-client";
 import { formatIR } from "@/lib/format-ir";
 import { useHotkey } from "@/lib/hotkeys";
-import { MODELS, type ModelKey } from "@/lib/pricing";
+import { recordCompile } from "@/lib/ledger";
+import { MODELS, PRICING, type ModelKey } from "@/lib/pricing";
 import { countTokens } from "@/lib/tokens";
 import type { CompileResponse, CompileState } from "@/lib/types";
 import type { DryRunState } from "@/components/dry-run/DryRunPanel";
@@ -105,6 +106,17 @@ export default function Home() {
     setDryRunState("idle");
     setDryRunResult(null);
     setDryRunError(null);
+
+    // Record raw input compression to the savings ledger. Negative deltas
+    // are recorded honestly — if the IR was bigger than the source, the
+    // ledger reflects that. Dollar proxy uses the active model's input
+    // rate; doesn't subtract the compile cost itself.
+    const formatted = formatIR(result.data.ir, modeForModel(model));
+    const sourceTokens = countTokens(source, model);
+    const irTokens = countTokens(formatted, model);
+    const savedTokens = sourceTokens - irTokens;
+    const savedDollars = (savedTokens * PRICING[model].input) / 1_000_000;
+    recordCompile({ saved_tokens: savedTokens, saved_dollars: savedDollars });
   }, [source, model, compileState]);
 
   const handleDryRun = useCallback(async () => {

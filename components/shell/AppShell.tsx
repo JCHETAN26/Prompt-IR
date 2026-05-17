@@ -2,6 +2,7 @@
 
 import { Settings } from "lucide-react";
 
+import { LedgerFooter } from "@/components/ledger/LedgerFooter";
 import { MODEL_SHORT_LABELS, MODELS, type ModelKey } from "@/lib/pricing";
 
 type AppShellProps = {
@@ -57,14 +58,7 @@ export function AppShell({ children, model, onModelChange }: AppShellProps) {
       <main className="flex flex-1 flex-col">{children}</main>
 
       <footer className="flex h-10 items-center justify-between border-t border-border px-6 font-mono text-[11px] text-muted-foreground">
-        <span>
-          <span className="text-muted-foreground/60">ledger</span>
-          <span className="px-2 text-muted-foreground/40">·</span>
-          <span className="tabular-nums text-foreground">0</span>
-          <span className="ml-1 text-muted-foreground/60">tokens saved</span>
-          <span className="px-2 text-muted-foreground/40">·</span>
-          <span className="tabular-nums text-foreground">$0.0000</span>
-        </span>
+        <LedgerFooter />
         <span className="text-muted-foreground/60">v0.1.0-dev</span>
       </footer>
     </div>
