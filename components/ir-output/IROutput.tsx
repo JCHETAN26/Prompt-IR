@@ -5,7 +5,9 @@ import { useMemo } from "react";
 
 import { DiffView } from "@/components/diff/DiffView";
 import { DryRunPanel, type DryRunState } from "@/components/dry-run/DryRunPanel";
+import { CacheReadyBadge } from "@/components/meters/CacheReadyBadge";
 import { TokenMeter } from "@/components/meters/TokenMeter";
+import { isCacheReady } from "@/lib/cache-check";
 import type { DryRunResponse } from "@/lib/dry-run-client";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
@@ -44,6 +46,7 @@ export function IROutput({
 }: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
+  const cacheCheck = useMemo(() => isCacheReady(ir ?? "", model), [ir, model]);
   const isCompiling = compileState === "compiling";
   const isError = compileState === "error";
 
@@ -70,7 +73,11 @@ export function IROutput({
           ) : isEmpty ? (
             <span className="font-mono text-[11px] text-muted-foreground/60">awaiting compile</span>
           ) : (
-            <TokenMeter tokens={tokens} model={model} />
+            <>
+              <CacheReadyBadge result={cacheCheck} />
+              <span className="text-muted-foreground/40">·</span>
+              <TokenMeter tokens={tokens} model={model} />
+            </>
           )}
         </div>
       </div>
