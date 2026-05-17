@@ -7,10 +7,20 @@ import { CommandPalette, type PaletteCommand } from "@/components/palette/Comman
 import { Refinery } from "@/components/refinery/Refinery";
 import { AppShell } from "@/components/shell/AppShell";
 import { compileSource, modeForModel } from "@/lib/compile-client";
+import { runDryRun, type DryRunResponse } from "@/lib/dry-run-client";
 import { formatIR } from "@/lib/format-ir";
 import { useHotkey } from "@/lib/hotkeys";
 import { MODELS, type ModelKey } from "@/lib/pricing";
+import { countTokens } from "@/lib/tokens";
 import type { CompileResponse, CompileState } from "@/lib/types";
+import type { DryRunState } from "@/components/dry-run/DryRunPanel";
+
+// Haiku pricing per 1M tokens (rough estimate for the cost-disclosure label).
+// Two parallel summary calls + ~30 tokens output each gives us this estimate.
+const HAIKU_INPUT_PER_M = 0.8;
+const HAIKU_OUTPUT_PER_M = 4.0;
+const SYSTEM_PROMPT_PADDING_TOK = 50;
+const ESTIMATED_OUTPUT_TOK = 60;
 
 const MODEL_STORAGE_KEY = "prompt-ir.model";
 
@@ -30,6 +40,10 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const [dryRunState, setDryRunState] = useState<DryRunState>("idle");
+  const [dryRunResult, setDryRunResult] = useState<DryRunResponse | null>(null);
+  const [dryRunError, setDryRunError] = useState<string | null>(null);
 
   // Hydrate the toggle from localStorage post-mount. We can't read it in
   // initial state without a hydration mismatch — the server has no
@@ -86,7 +100,44 @@ export default function Home() {
     setResponse(result.data);
     setCompiledWithModel(model);
     setCompileState("done");
+    // Reset the dry-run panel so it doesn't show stale summaries of a
+    // previous IR after a fresh compile.
+    setDryRunState("idle");
+    setDryRunResult(null);
+    setDryRunError(null);
   }, [source, model, compileState]);
+
+  const handleDryRun = useCallback(async () => {
+    if (!ir || dryRunState === "running") return;
+    setDryRunState("running");
+    setDryRunError(null);
+    const result = await runDryRun(source, ir);
+    if (!result.ok) {
+      setDryRunError(result.error + (result.details ? ` (${result.details})` : ""));
+      setDryRunState("error");
+      return;
+    }
+    setDryRunResult(result.data);
+    setDryRunState("done");
+  }, [ir, source, dryRunState]);
+
+  const handleDismissDryRun = useCallback(() => {
+    setDryRunState("idle");
+    setDryRunResult(null);
+    setDryRunError(null);
+  }, []);
+
+  // Honest cost estimate for the Dry Run button label. Two parallel Haiku
+  // calls: each consumes (source-or-ir tokens + system padding) input and
+  // ~30 tokens of summary output.
+  const dryRunEstimate = useMemo(() => {
+    if (!ir) return 0;
+    const srcTok = countTokens(source, "claude-sonnet"); // proxy via o200k_base
+    const irTok = countTokens(ir, "claude-sonnet");
+    const inputTotal = srcTok + irTok + 2 * SYSTEM_PROMPT_PADDING_TOK;
+    const outputTotal = 2 * ESTIMATED_OUTPUT_TOK;
+    return (inputTotal * HAIKU_INPUT_PER_M + outputTotal * HAIKU_OUTPUT_PER_M) / 1_000_000;
+  }, [source, ir]);
 
   const handleCopyIR = useCallback(async () => {
     if (!ir) return;
@@ -133,6 +184,14 @@ export default function Home() {
             model={model}
             compileState={compileState}
             isStale={isStale}
+            dryRun={{
+              state: dryRunState,
+              result: dryRunResult,
+              error: dryRunError,
+              estimatedCost: dryRunEstimate,
+              onRun: handleDryRun,
+              onDismiss: handleDismissDryRun,
+            }}
           />
         </div>
       </AppShell>
