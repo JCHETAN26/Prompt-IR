@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import { useMemo } from "react";
 
 import { DiffView } from "@/components/diff/DiffView";
+import { DryRunPanel, type DryRunState } from "@/components/dry-run/DryRunPanel";
 import { TokenMeter } from "@/components/meters/TokenMeter";
+import type { DryRunResponse } from "@/lib/dry-run-client";
 import { countTokens } from "@/lib/tokens";
 import type { ModelKey } from "@/lib/pricing";
 import type { CompileState, DiffEntry } from "@/lib/types";
@@ -18,6 +20,14 @@ type IROutputProps = {
   compileState: CompileState;
   /** True when the IR was produced by a provider different from the active toggle. */
   isStale: boolean;
+  dryRun: {
+    state: DryRunState;
+    result: DryRunResponse | null;
+    error: string | null;
+    estimatedCost: number;
+    onRun: () => void;
+    onDismiss: () => void;
+  };
 };
 
 const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
@@ -30,6 +40,7 @@ export function IROutput({
   model,
   compileState,
   isStale,
+  dryRun,
 }: IROutputProps) {
   const isEmpty = ir === null || ir.trim().length === 0;
   const tokens = useMemo(() => (isEmpty ? 0 : countTokens(ir!, model)), [ir, model, isEmpty]);
@@ -71,7 +82,7 @@ export function IROutput({
         ) : isEmpty ? (
           <EmptyState />
         ) : (
-          <FilledState ir={ir!} diff={diff} />
+          <FilledState ir={ir!} diff={diff} dryRun={dryRun} />
         )}
       </div>
     </motion.section>
@@ -131,11 +142,27 @@ function ErrorState({ message, details }: { message: string | null; details: str
   );
 }
 
-function FilledState({ ir, diff }: { ir: string; diff: DiffEntry[] | null }) {
+function FilledState({
+  ir,
+  diff,
+  dryRun,
+}: {
+  ir: string;
+  diff: DiffEntry[] | null;
+  dryRun: IROutputProps["dryRun"];
+}) {
   return (
     <div className="flex flex-col gap-6">
       <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
       {diff && diff.length > 0 && <DiffView diff={diff} />}
+      <DryRunPanel
+        state={dryRun.state}
+        result={dryRun.result}
+        error={dryRun.error}
+        estimatedCost={dryRun.estimatedCost}
+        onRun={dryRun.onRun}
+        onDismiss={dryRun.onDismiss}
+      />
     </div>
   );
 }
