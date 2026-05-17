@@ -192,6 +192,7 @@ export default function Home() {
           <IROutput
             ir={ir}
             diff={response?.diff ?? null}
+            source={source}
             errorMessage={errorMessage}
             errorDetails={errorDetails}
             model={model}
