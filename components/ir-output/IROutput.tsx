@@ -18,6 +18,7 @@ import type { CompileState, DiffEntry } from "@/lib/types";
 type IROutputProps = {
   ir: string | null;
   diff: DiffEntry[] | null;
+  source: string;
   errorMessage: string | null;
   errorDetails: string | null;
   model: ModelKey;
@@ -39,6 +40,7 @@ const EMPTY_PREVIEW_TAGS = ["context", "constraints", "rules", "task"] as const;
 export function IROutput({
   ir,
   diff,
+  source,
   errorMessage,
   errorDetails,
   model,
@@ -91,7 +93,13 @@ export function IROutput({
         ) : isEmpty ? (
           <EmptyState />
         ) : (
-          <FilledState ir={ir!} diff={diff} mode={modeForModel(model)} dryRun={dryRun} />
+          <FilledState
+            ir={ir!}
+            diff={diff}
+            source={source}
+            mode={modeForModel(model)}
+            dryRun={dryRun}
+          />
         )}
       </div>
     </motion.section>
@@ -154,11 +162,13 @@ function ErrorState({ message, details }: { message: string | null; details: str
 function FilledState({
   ir,
   diff,
+  source,
   mode,
   dryRun,
 }: {
   ir: string;
   diff: DiffEntry[] | null;
+  source: string;
   mode: ReturnType<typeof modeForModel>;
   dryRun: IROutputProps["dryRun"];
 }) {
@@ -166,7 +176,7 @@ function FilledState({
     <div className="flex flex-col gap-6">
       <pre className="whitespace-pre-wrap text-foreground">{ir}</pre>
       <ExportMenu ir={ir} mode={mode} />
-      {diff && diff.length > 0 && <DiffView diff={diff} />}
+      {diff && diff.length > 0 && <DiffView diff={diff} source={source} ir={ir} />}
       <DryRunPanel
         state={dryRun.state}
         result={dryRun.result}
