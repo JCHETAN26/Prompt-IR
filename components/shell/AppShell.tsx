@@ -59,7 +59,7 @@ export function AppShell({ children, model, onModelChange }: AppShellProps) {
 
       <footer className="flex h-10 items-center justify-between border-t border-border px-6 font-mono text-[11px] text-muted-foreground">
         <LedgerFooter />
-        <span className="text-muted-foreground/60">v0.1.0-dev</span>
+        <span className="text-muted-foreground/60">v0.1.0</span>
       </footer>
     </div>
   );
